@@ -1,4 +1,4 @@
-name: Sync to Personal Repo
+name: 🔁 Sync Org to Personal Repo (Fresh Push)
 
 on:
   push:
@@ -10,18 +10,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: ⬇️ Checkout org repo code
+      - name: ⬇️ Checkout org repo
         uses: actions/checkout@v3
-        with:
-          persist-credentials: false
 
-      - name: 🔄 Push code to personal repo
+      - name: 🧼 Clean and Re-Init Git Repo
+        run: |
+          rm -rf .git
+          git init
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add .
+          git commit -m "🚀 Sync from org repo"
+
+      - name: 🚀 Push to personal repo (Benjy0812/Gooble)
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
-
-          git remote add personal https://Benjy0812:${GH_PAT}@github.com/Benjy0812/Gooble.git
-
-          git push personal main --force
+          git remote add origin https://Benjy0812:${GH_PAT}@github.com/Benjy0812/Gooble.git
+          git branch -M main
+          git push -u origin main --force
