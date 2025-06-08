@@ -11,21 +11,42 @@ jobs:
 
     steps:
       - name: ⬇️ Checkout org repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history for proper sync
+
+      - name: 🔧 Configure Git
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
 
       - name: 🔍 Debug GH_PAT presence
-        run: echo "GH_PAT length: ${{ secrets.GH_PAT && secrets.GH_PAT.length || 'not set' }}"
+        run: echo "GH_PAT is ${{ secrets.GH_PAT && 'set' || 'not set' }}"
 
       - name: 🚀 Push to personal repo (Benjy0812/Gooble)
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
-          git remote add origin https://Benjy0812:${GH_PAT}@github.com/Benjy0812/Gooble.git
-          git branch -M main
+          # Remove any existing origin and add personal repo as new remote
+          git remote remove origin || true
+          git remote add personal https://Benjy0812:${GH_PAT}@github.com/Benjy0812/Gooble.git
+          
+          # Ensure we're on main branch
+          git checkout -B main
+          
+          # Push with retry logic
           for i in 1 2 3; do
             echo "Attempt $i to push..."
-            git push -u origin main --force && break || {
-              echo "Push failed, retrying in 5 seconds..."
+            if git push personal main --force; then
+              echo "✅ Successfully pushed to personal repo!"
+              break
+            else
+              echo "❌ Push failed on attempt $i"
+              if [ $i -eq 3 ]; then
+                echo "🚨 All push attempts failed!"
+                exit 1
+              fi
+              echo "⏳ Retrying in 5 seconds..."
               sleep 5
-            }
+            fi
           done
