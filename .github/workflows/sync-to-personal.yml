@@ -27,18 +27,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          # Verify PAT is available
+          # Verify PAT is available  
           if [ -z "$GH_TOKEN" ]; then
             echo "🚨 GH_PAT secret is not set!"
             exit 1
           fi
           
-          # Debug: Show first few chars of PAT (safely)
-          echo "PAT starts with: ${GH_TOKEN:0:4}..."
-          
-          # Authenticate with GitHub CLI
-          echo "🔐 Authenticating with GitHub CLI..."
-          echo "$GH_TOKEN" | gh auth login --with-token
+          # Debug: Show that token is available
+          echo "✅ PAT is available for GitHub CLI"
           
           # Verify authentication
           echo "🔍 Testing GitHub CLI authentication..."
