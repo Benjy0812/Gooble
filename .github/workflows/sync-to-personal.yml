@@ -13,14 +13,8 @@ jobs:
       - name: ⬇️ Checkout org repo
         uses: actions/checkout@v3
 
-      - name: 🧼 Clean and Re-Init Git Repo
-        run: |
-          rm -rf .git
-          git init
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git add .
-          git commit -m "🚀 Sync from org repo"
+      - name: 🔍 Debug GH_PAT presence
+        run: echo "GH_PAT length: ${{ secrets.GH_PAT && secrets.GH_PAT.length || 'not set' }}"
 
       - name: 🚀 Push to personal repo (Benjy0812/Gooble)
         env:
@@ -28,4 +22,10 @@ jobs:
         run: |
           git remote add origin https://Benjy0812:${GH_PAT}@github.com/Benjy0812/Gooble.git
           git branch -M main
-          git push -u origin main --force
+          for i in 1 2 3; do
+            echo "Attempt $i to push..."
+            git push -u origin main --force && break || {
+              echo "Push failed, retrying in 5 seconds..."
+              sleep 5
+            }
+          done
