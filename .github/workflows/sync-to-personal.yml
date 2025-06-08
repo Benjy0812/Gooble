@@ -23,59 +23,56 @@ jobs:
       - name: 🔍 Debug GH_PAT presence
         run: echo "GH_PAT is ${{ secrets.GH_PAT && 'set' || 'not set' }}"
 
-      - name: 🚀 Push to personal repo (Benjy0812/Gooble)
+      - name: 🚀 Push to personal repo using GitHub CLI
         env:
-          GH_PAT: ${{ secrets.GH_PAT }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           # Verify PAT is available
-          if [ -z "$GH_PAT" ]; then
+          if [ -z "$GH_TOKEN" ]; then
             echo "🚨 GH_PAT secret is not set!"
             exit 1
           fi
           
           # Debug: Show first few chars of PAT (safely)
-          echo "PAT starts with: ${GH_PAT:0:4}..."
+          echo "PAT starts with: ${GH_TOKEN:0:4}..."
           
-          # Completely reset git credentials
-          git config --global --unset-all credential.helper || true
-          git config --system --unset-all credential.helper || true
-          git config --local --unset-all credential.helper || true
+          # Authenticate with GitHub CLI
+          echo "🔐 Authenticating with GitHub CLI..."
+          echo "$GH_TOKEN" | gh auth login --with-token
           
-          # Remove any cached credentials
-          rm -rf ~/.git-credentials ~/.gitconfig || true
+          # Verify authentication
+          echo "🔍 Testing GitHub CLI authentication..."
+          gh auth status
           
-          # Set up fresh git config with the PAT
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@users.noreply.github.com"
-          git config --global credential.helper "store --file=/tmp/git-credentials"
+          # Clone the target repo to a temporary directory
+          echo "📥 Cloning target repository..."
+          gh repo clone Benjy0812/Gooble temp-repo
           
-          # Create credentials file with our PAT
-          echo "https://${GH_PAT}@github.com" > /tmp/git-credentials
+          # Copy all files from current repo to target repo (excluding .git)
+          echo "📁 Copying files..."
+          rsync -av --exclude='.git' ./ temp-repo/
           
-          # Ensure we're on main branch
-          git checkout -B main
+          # Change to target repo directory
+          cd temp-repo
           
-          # Test authentication first
-          echo "🔍 Testing authentication..."
-          if ! git ls-remote https://github.com/Benjy0812/Gooble.git >/dev/null 2>&1; then
-            echo "❌ Authentication test failed!"
-            exit 1
+          # Configure git for the commit
+          git config user.name "GitHub Actions Sync"
+          git config user.email "actions@github.com"
+          
+          # Add all changes
+          git add .
+          
+          # Check if there are any changes to commit
+          if git diff --staged --quiet; then
+            echo "✅ No changes to sync - repositories are already in sync!"
+          else
+            # Commit changes
+            echo "💾 Committing changes..."
+            git commit -m "Sync from organization repository"
+            
+            # Push changes
+            echo "🚀 Pushing to personal repository..."
+            git push origin main
+            
+            echo "✅ Successfully synced to personal repository!"
           fi
-          echo "✅ Authentication test passed!"
-          
-          # Push with retry logic
-          for i in 1 2 3; do
-            echo "Attempt $i to push..."
-            if git push https://github.com/Benjy0812/Gooble.git main --force; then
-              echo "✅ Successfully pushed to personal repo!"
-              break
-            else
-              echo "❌ Push failed on attempt $i"
-              if [ $i -eq 3 ]; then
-                echo "🚨 All push attempts failed!"
-                exit 1
-              fi
-              echo "⏳ Retrying in 5 seconds..."
-              sleep 5
-            fi
-          done
