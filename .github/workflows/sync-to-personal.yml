@@ -36,17 +36,37 @@ jobs:
           # Debug: Show first few chars of PAT (safely)
           echo "PAT starts with: ${GH_PAT:0:4}..."
           
-          # Disable git credential helper to force URL-based auth
+          # Completely reset git credentials
           git config --global --unset-all credential.helper || true
-          git config --global credential.helper ""
+          git config --system --unset-all credential.helper || true
+          git config --local --unset-all credential.helper || true
+          
+          # Remove any cached credentials
+          rm -rf ~/.git-credentials ~/.gitconfig || true
+          
+          # Set up fresh git config with the PAT
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@users.noreply.github.com"
+          git config --global credential.helper "store --file=/tmp/git-credentials"
+          
+          # Create credentials file with our PAT
+          echo "https://${GH_PAT}@github.com" > /tmp/git-credentials
           
           # Ensure we're on main branch
           git checkout -B main
           
-          # Push directly with PAT in URL (retry logic)
+          # Test authentication first
+          echo "🔍 Testing authentication..."
+          if ! git ls-remote https://github.com/Benjy0812/Gooble.git >/dev/null 2>&1; then
+            echo "❌ Authentication test failed!"
+            exit 1
+          fi
+          echo "✅ Authentication test passed!"
+          
+          # Push with retry logic
           for i in 1 2 3; do
             echo "Attempt $i to push..."
-            if git push "https://${GH_PAT}@github.com/Benjy0812/Gooble.git" main --force; then
+            if git push https://github.com/Benjy0812/Gooble.git main --force; then
               echo "✅ Successfully pushed to personal repo!"
               break
             else
