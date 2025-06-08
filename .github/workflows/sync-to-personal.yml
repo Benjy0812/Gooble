@@ -33,21 +33,20 @@ jobs:
             exit 1
           fi
           
-          # Configure git credentials using the PAT
-          git config --global credential.helper store
-          echo "https://${GH_PAT}@github.com" > ~/.git-credentials
+          # Debug: Show first few chars of PAT (safely)
+          echo "PAT starts with: ${GH_PAT:0:4}..."
           
-          # Remove any existing origin and add personal repo as new remote
-          git remote remove origin || true
-          git remote add personal https://github.com/Benjy0812/Gooble.git
+          # Disable git credential helper to force URL-based auth
+          git config --global --unset-all credential.helper || true
+          git config --global credential.helper ""
           
           # Ensure we're on main branch
           git checkout -B main
           
-          # Push with retry logic
+          # Push directly with PAT in URL (retry logic)
           for i in 1 2 3; do
             echo "Attempt $i to push..."
-            if git push personal main --force; then
+            if git push "https://${GH_PAT}@github.com/Benjy0812/Gooble.git" main --force; then
               echo "✅ Successfully pushed to personal repo!"
               break
             else
