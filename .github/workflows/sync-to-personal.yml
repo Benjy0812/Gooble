@@ -27,9 +27,19 @@ jobs:
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
+          # Verify PAT is available
+          if [ -z "$GH_PAT" ]; then
+            echo "🚨 GH_PAT secret is not set!"
+            exit 1
+          fi
+          
+          # Configure git credentials using the PAT
+          git config --global credential.helper store
+          echo "https://${GH_PAT}@github.com" > ~/.git-credentials
+          
           # Remove any existing origin and add personal repo as new remote
           git remote remove origin || true
-          git remote add personal https://Benjy0812:${GH_PAT}@github.com/Benjy0812/Gooble.git
+          git remote add personal https://github.com/Benjy0812/Gooble.git
           
           # Ensure we're on main branch
           git checkout -B main
