@@ -23,4 +23,6 @@ jobs:
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
+          git rm --cached .github/workflows/*.yml
+          git commit -m "Remove workflow files for sync" || true
           git push "https://${GH_PAT}@github.com/Benjy0812/Gooble.git" main --force
