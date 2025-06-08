@@ -1,4 +1,4 @@
-name: 🔁 Sync Org to Personal Repo (Fresh Push)
+name: 🔁 Sync Org to Personal Repo (Debug Version)
 
 on:
   push:
@@ -13,62 +13,56 @@ jobs:
       - name: ⬇️ Checkout org repo
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch full history for proper sync
+          fetch-depth: 0
 
       - name: 🔧 Configure Git
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
 
-      - name: 🔍 Debug GH_PAT presence
-        run: echo "GH_PAT is ${{ secrets.GH_PAT && 'set' || 'not set' }}"
-
-      - name: 🚀 Push to personal repo using GitHub CLI
+      - name: 🔍 Debug - Test PAT with API
         env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
+          GH_PAT: ${{ secrets.GH_PAT }}
         run: |
-          # Verify PAT is available  
-          if [ -z "$GH_TOKEN" ]; then
-            echo "🚨 GH_PAT secret is not set!"
+          echo "Testing PAT with GitHub API..."
+          if curl -s -H "Authorization: token $GH_PAT" https://api.github.com/repos/Benjy0812/Gooble | grep -q '"name": "Gooble"'; then
+            echo "✅ PAT can access target repository"
+          else
+            echo "❌ PAT cannot access target repository"
+            echo "Response:"
+            curl -s -H "Authorization: token $GH_PAT" https://api.github.com/repos/Benjy0812/Gooble
             exit 1
           fi
+
+      - name: 🔍 Debug - Check repository status
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          echo "Checking repository permissions..."
+          curl -s -H "Authorization: token $GH_PAT" https://api.github.com/repos/Benjy0812/Gooble | jq '.permissions // "no permissions info"'
+
+      - name: 🚀 Simple force push test
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          echo "Attempting simple force push..."
           
-          # Debug: Show that token is available
-          echo "✅ PAT is available for GitHub CLI"
+          # Create a completely clean remote URL
+          REPO_URL="https://${GH_PAT}@github.com/Benjy0812/Gooble.git"
           
-          # Verify authentication
-          echo "🔍 Testing GitHub CLI authentication..."
-          gh auth status
-          
-          # Clone the target repo to a temporary directory
-          echo "📥 Cloning target repository..."
-          gh repo clone Benjy0812/Gooble temp-repo
-          
-          # Copy all files from current repo to target repo (excluding .git)
-          echo "📁 Copying files..."
-          rsync -av --exclude='.git' ./ temp-repo/
-          
-          # Change to target repo directory
-          cd temp-repo
-          
-          # Configure git for the commit
-          git config user.name "GitHub Actions Sync"
-          git config user.email "actions@github.com"
-          
-          # Add all changes
-          git add .
-          
-          # Check if there are any changes to commit
-          if git diff --staged --quiet; then
-            echo "✅ No changes to sync - repositories are already in sync!"
+          # Try to push directly
+          if git push "$REPO_URL" main --force; then
+            echo "✅ Force push succeeded!"
           else
-            # Commit changes
-            echo "💾 Committing changes..."
-            git commit -m "Sync from organization repository"
+            echo "❌ Force push failed"
+            echo "Trying alternative method..."
             
-            # Push changes
-            echo "🚀 Pushing to personal repository..."
+            # Alternative: clone target, copy files, push
+            git clone "https://${GH_PAT}@github.com/Benjy0812/Gooble.git" target-repo
+            cp -r ./* target-repo/ 2>/dev/null || true
+            cp -r ./.github target-repo/ 2>/dev/null || true
+            cd target-repo
+            git add .
+            git commit -m "Sync from org repo" || echo "No changes to commit"
             git push origin main
-            
-            echo "✅ Successfully synced to personal repository!"
           fi
