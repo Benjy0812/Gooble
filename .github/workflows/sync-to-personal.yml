@@ -1,16 +1,14 @@
-name: 🔁 Sync Org to Personal Repo (Debug Version)
+name: 🔁 Sync to Personal Repo
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
   sync:
     runs-on: ubuntu-latest
-
     steps:
-      - name: ⬇️ Checkout org repo
+      - name: ⬇️ Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -20,49 +18,8 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
 
-      - name: 🔍 Debug - Test PAT with API
+      - name: 🚀 Sync to personal repo
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
-          echo "Testing PAT with GitHub API..."
-          if curl -s -H "Authorization: token $GH_PAT" https://api.github.com/repos/Benjy0812/Gooble | grep -q '"name": "Gooble"'; then
-            echo "✅ PAT can access target repository"
-          else
-            echo "❌ PAT cannot access target repository"
-            echo "Response:"
-            curl -s -H "Authorization: token $GH_PAT" https://api.github.com/repos/Benjy0812/Gooble
-            exit 1
-          fi
-
-      - name: 🔍 Debug - Check repository status
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
-        run: |
-          echo "Checking repository permissions..."
-          curl -s -H "Authorization: token $GH_PAT" https://api.github.com/repos/Benjy0812/Gooble | jq '.permissions // "no permissions info"'
-
-      - name: 🚀 Simple force push test
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
-        run: |
-          echo "Attempting simple force push..."
-          
-          # Create a completely clean remote URL
-          REPO_URL="https://${GH_PAT}@github.com/Benjy0812/Gooble.git"
-          
-          # Try to push directly
-          if git push "$REPO_URL" main --force; then
-            echo "✅ Force push succeeded!"
-          else
-            echo "❌ Force push failed"
-            echo "Trying alternative method..."
-            
-            # Alternative: clone target, copy files, push
-            git clone "https://${GH_PAT}@github.com/Benjy0812/Gooble.git" target-repo
-            cp -r ./* target-repo/ 2>/dev/null || true
-            cp -r ./.github target-repo/ 2>/dev/null || true
-            cd target-repo
-            git add .
-            git commit -m "Sync from org repo" || echo "No changes to commit"
-            git push origin main
-          fi
+          git push "https://${GH_PAT}@github.com/Benjy0812/Gooble.git" main --force
